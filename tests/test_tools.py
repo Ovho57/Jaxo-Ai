@@ -34,5 +34,29 @@ class WorkspaceSafetyTests(unittest.TestCase):
         self.assertEqual((tools.WORKSPACE / "notes/hello.txt").read_text(), "hello")
 
 
+class SourceInspectionTests(unittest.TestCase):
+    def test_lists_source_files_without_env_files(self):
+        listing = tools.list_source_files()
+        self.assertIn("main.py", listing)
+        self.assertIn("jaxo/brain.py", listing)
+        self.assertNotIn(".env", listing)
+
+    def test_reads_own_brain_module(self):
+        content = tools.read_source_file("jaxo/brain.py")
+        self.assertIn("SYSTEM_PROMPT", content)
+
+    def test_blocks_environment_files(self):
+        with self.assertRaises(ValueError):
+            tools.read_source_file(".env")
+
+    def test_blocks_parent_traversal(self):
+        with self.assertRaises(ValueError):
+            tools.read_source_file("../outside.py")
+
+    def test_blocks_non_source_files(self):
+        with self.assertRaises(ValueError):
+            tools.read_source_file("workspace/private.txt")
+
+
 if __name__ == "__main__":
     unittest.main()
