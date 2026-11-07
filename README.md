@@ -35,6 +35,10 @@ JAXO fetches public HTML and plain text. It does not execute JavaScript, sign in
 - Unrestricted terminal execution.
 - Verified end-to-end runtime on all operating systems.
 
+## Premium key portal
+
+The optional password-protected key portal is in [premium-key-portal](premium-key-portal/README.md). It requires a Cloudflare account and server-side secrets; do not publish the portal password or key in source files.
+
 ## Quick start
 See [Installation](docs/INSTALLATION.md).
 
