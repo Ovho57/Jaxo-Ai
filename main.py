@@ -17,6 +17,7 @@ from jaxo.client import JaxoClient
 from jaxo.brain import JaxoBrain
 from jaxo.voice import VoiceEngine
 from jaxo.project_builder import build_project
+from jaxo.tools import set_workspace
 
 console = Console()
 ACCOUNT_FILE = Path.home() / ".jaxo" / "account.json"
@@ -26,6 +27,34 @@ PREMIUM_KEY_SHA256 = "6bdae904bb5ef31531509774d5a55a67863ef86526530374ae706a50e6
 
 def load_account():
     return json.loads(ACCOUNT_FILE.read_text(encoding="utf-8"))
+
+
+def save_account(account):
+    ACCOUNT_FILE.write_text(json.dumps(account, indent=2), encoding="utf-8")
+    try:
+        ACCOUNT_FILE.chmod(0o600)
+    except OSError:
+        pass
+
+
+def restore_workspace():
+    try:
+        account = load_account()
+        saved = account.get("workspace")
+        if saved:
+            return set_workspace(saved)
+    except (OSError, ValueError, NotADirectoryError):
+        pass
+    return set_workspace(str(Path.cwd() / "workspace"))
+
+
+def select_workspace(path):
+    selected = set_workspace(path)
+    account = load_account()
+    account["workspace"] = str(selected)
+    save_account(account)
+    console.print(f"[bold green]Working folder set to:[/] {selected}")
+    console.print("[dim]JAXO can now list, read, create and edit text/code files inside this folder.[/dim]")
 
 
 def is_premium():
@@ -38,11 +67,7 @@ def is_premium():
 def unlock_premium():
     account = load_account()
     account["premium"] = True
-    ACCOUNT_FILE.write_text(json.dumps(account, indent=2), encoding="utf-8")
-    try:
-        ACCOUNT_FILE.chmod(0o600)
-    except OSError:
-        pass
+    save_account(account)
     console.print("[bold green]Premium unlocked! Welcome to JAXO Premium.[/bold green]")
 
 
@@ -92,6 +117,7 @@ def remember_chat(brain):
 
 def draw_home():
     """Render JAXO's terminal home screen."""
+    from jaxo import tools as jaxo_tools
     console.clear()
     tabs = Text()
     tabs.append("[Current]", style="bold white on blue")
@@ -102,16 +128,15 @@ def draw_home():
     console.print(tabs)
     console.print()
     left = (
-        "[bold bright_blue]▣  ▣[/bold bright_blue]\n"
-        "[bold magenta]▰ ▣▣ ▰[/bold magenta]\n"
-        "[bold magenta] ▣▣▣[/bold magenta]\n"
-        "[white]JAXO uses AI.[/white]\n"
-        "[dim]Check important results.[/dim]"
+        "[bold bright_blue]JAXO AI[/bold bright_blue]\n"
+        "[white]Your local AI workspace agent.[/white]\n"
+        "[dim]Select a folder and build.[/dim]"
     )
     right = (
         "[bold bright_blue]Getting started[/bold bright_blue]\n"
-        "[white]Chat with JAXO, build projects, inspect websites and write code.[/white]\n"
+        "[white]Chat, inspect projects, create files and build code.[/white]\n"
         "[white]/help[/white]  Show commands\n"
+        "[white]/folder PATH[/white]  Select a working folder\n"
         "[white]/new chat[/white]  Start a fresh conversation\n"
         "[white]/new project[/white]  Create a workspace project\n"
         "[white]/remember chat[/white]  Save this chat (Premium)"
@@ -122,7 +147,7 @@ def draw_home():
     intro.add_row(left, right)
     console.print(Panel(intro, border_style="bright_blue", padding=(1, 2), box=box.ROUNDED))
     console.print()
-    console.print("[bright_blue]●[/bright_blue] JAXO ready · AI connection initialized · Workspace tools available")
+    console.print(f"[bright_blue]JAXO ready[/bright_blue] · Working folder: [cyan]{jaxo_tools.WORKSPACE}[/cyan]")
     console.print()
     console.print("[dim]Type a message below. Use /help for commands.[/dim]")
 
@@ -133,6 +158,8 @@ def main():
         return
 
     try:
+        active_folder = restore_workspace()
+        console.print(f"[dim]Working folder: {active_folder}[/dim]")
         client = JaxoClient()
         brain = JaxoBrain(client, console)
         voice = VoiceEngine(console)
@@ -159,11 +186,12 @@ def main():
             console.print(
                 "[bold bright_blue]JAXO commands[/bold bright_blue]\n"
                 "  /help             Show commands\n"
+                "  /folder PATH      Select the folder JAXO can work in\n"
                 "  /new chat         Start a fresh conversation\n"
-                "  /new project      Create a new workspace project\n"
+                "  /new project      Create a new project in the selected folder\n"
                 "  /remember chat    Save this conversation (Premium)\n"
                 "  /license          Enter premium license key\n"
-                "  /tree             Show workspace files\n"
+                "  /tree             Show selected folder files\n"
                 "  /source [PATH]    List or read JAXO source files\n"
                 "  /self-check       Inspect JAXO source inventory\n"
                 "  /evolve           Draft a self-improvement plan\n"
@@ -172,6 +200,16 @@ def main():
                 "  /clear            Return to the home screen\n"
                 "  /exit             Quit JAXO\n"
             )
+            continue
+        if command == "/folder" or command.startswith("/folder "):
+            folder_path = user_text.partition(" ")[2].strip().strip('"').strip("'")
+            if not folder_path:
+                folder_path = Prompt.ask("Enter the full path to the folder")
+            try:
+                select_workspace(folder_path)
+            except (OSError, ValueError) as exc:
+                console.print(f"[red]Could not select folder:[/] {exc}")
+                console.print("[dim]In WSL, Windows folders usually look like /mnt/c/Users/YourName/Desktop[/dim]")
             continue
         if command == "/license":
             activate_license()
@@ -209,7 +247,7 @@ def main():
             continue
         if command == "/tree":
             from jaxo.tools import workspace_tree
-            console.print(Panel(workspace_tree(), title="Workspace", border_style="bright_blue"))
+            console.print(Panel(workspace_tree(), title="Selected folder", border_style="bright_blue"))
             continue
         if command == "/source" or command.startswith("/source "):
             from jaxo.tools import list_source_files, read_source_file
@@ -248,11 +286,7 @@ def main():
                 continue
             brain.respond(user_text)
             account["free_messages_used"] = used + 1
-            ACCOUNT_FILE.write_text(json.dumps(account, indent=2), encoding="utf-8")
-            try:
-                ACCOUNT_FILE.chmod(0o600)
-            except OSError:
-                pass
+            save_account(account)
         else:
             brain.respond(user_text)
     client.close()
