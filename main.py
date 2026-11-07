@@ -54,6 +54,22 @@ def main():
                 title="JAXO help", border_style="green"
             ))
             continue
+        if user_text.lower() == "/self-check":
+            from pathlib import Path
+            from jaxo.evolution.inspector import inspect_source
+            findings = inspect_source(Path(__file__).resolve().parent)
+            console.print(Panel("\\n".join(findings) or "No Python source files found.", title="JAXO source inspection", border_style="green"))
+            continue
+        if user_text.lower() == "/evolve":
+            from pathlib import Path
+            from rich.prompt import Prompt as RichPrompt
+            from jaxo.evolution.inspector import inspect_source
+            from jaxo.evolution.planner import make_plan
+            goal = RichPrompt.ask("What should JAXO improve?")
+            findings = inspect_source(Path(__file__).resolve().parent)
+            console.print(Panel(make_plan(goal, findings), title="Evolution Engine • proposal only", border_style="yellow"))
+            console.print("[yellow]No source files were changed. Automatic patching is not enabled.[/yellow]")
+            continue
         if user_text.lower() == "/clear":
             console.clear()
             continue
