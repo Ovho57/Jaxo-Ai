@@ -176,7 +176,7 @@ def main():
         if command == "/new project":
             name = Prompt.ask("Project name").strip()
             if name:
-                result = build_project(name, {"README.md": f"# {name}\\n\\nCreated with JAXO.\\n"}, console)
+                result = build_project(name, {"README.md": f"# {name}\n\nCreated with JAXO.\n"}, console)
                 console.print(result)
             continue
         if command == "/voice":
@@ -231,7 +231,7 @@ def main():
             used = int(account.get("free_messages_used", 0))
             if used >= 5:
                 console.print(Panel(
-                    "[bold yellow]FREE CHAT LIMIT REACHED[/bold yellow]\\n\\n"
+                    "[bold yellow]FREE CHAT LIMIT REACHED[/bold yellow]\n\n"
                     "You've used your 5 free messages. Enter your JAXO Premium key with [bold]/license[/bold] to continue.",
                     title="JAXO Premium", border_style="yellow"
                 ))
