@@ -136,6 +136,8 @@ def workspace_tree() -> str:
 
 
 TOOL_SPECS = [
+    {"type": "function", "function": {"name": "inspect_website", "description": "Inspect a public website URL and extract readable HTML or plain-text content. Does not log in or execute JavaScript.", "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}},
+
     {"type": "function", "function": {"name": "create_folder", "description": "Create a folder inside the JAXO workspace. The user must approve.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}},
     {"type": "function", "function": {"name": "create_file", "description": "Create or replace a UTF-8 text file inside the JAXO workspace. The user must approve.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}}, "required": ["path", "content"]}}},
     {"type": "function", "function": {"name": "create_project", "description": "Create a multi-file project in the JAXO workspace. Provide a project folder name and a map of relative file paths to text contents. User approval is required.", "parameters": {"type": "object", "properties": {"name": {"type": "string"}, "files": {"type": "object", "additionalProperties": {"type": "string"}}}, "required": ["name", "files"]}}},
