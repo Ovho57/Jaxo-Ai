@@ -14,12 +14,12 @@ class TextExtractor(HTMLParser):
         if tag in {"script", "style", "noscript", "svg"}:
             self.skip += 1
         elif tag in {"p", "div", "br", "li", "h1", "h2", "h3", "tr"} and not self.skip:
-            self.parts.append("\\n")
+            self.parts.append("\n")
     def handle_endtag(self, tag):
         if tag in {"script", "style", "noscript", "svg"} and self.skip:
             self.skip -= 1
         elif tag in {"p", "div", "li", "h1", "h2", "h3", "tr"} and not self.skip:
-            self.parts.append("\\n")
+            self.parts.append("\n")
     def handle_data(self, data):
         if not self.skip:
             value = " ".join(data.split())
@@ -48,26 +48,36 @@ def inspect_website(url):
         with httpx.Client(timeout=15.0, follow_redirects=False, headers=headers) as client:
             for _ in range(6):
                 validate_public_url(current)
-                response = client.get(current)
-                if response.status_code in {301, 302, 303, 307, 308}:
-                    location = response.headers.get("location")
-                    if not location:
-                        return "Redirect without a Location header."
-                    current = urljoin(current, location)
-                    continue
-                response.raise_for_status()
-                content_type = response.headers.get("content-type", "").lower()
-                if not any(kind in content_type for kind in ("text/html", "text/plain", "application/xhtml+xml")):
-                    return f"Unsupported page type ({content_type or 'unknown'}). HTML/plain text only."
-                raw = response.content[:MAX_BYTES].decode(response.encoding or "utf-8", errors="replace")
+                with client.stream("GET", current) as response:
+                    if response.status_code in {301, 302, 303, 307, 308}:
+                        location = response.headers.get("location")
+                        if not location:
+                            return "Redirect without a Location header."
+                        current = urljoin(current, location)
+                        continue
+                    response.raise_for_status()
+                    content_type = response.headers.get("content-type", "").lower()
+                    if not any(kind in content_type for kind in ("text/html", "text/plain", "application/xhtml+xml")):
+                        return f"Unsupported page type ({content_type or 'unknown'}). HTML/plain text only."
+                    chunks, total = [], 0
+                    for chunk in response.iter_bytes():
+                        remaining = MAX_BYTES - total
+                        if remaining <= 0:
+                            break
+                        piece = chunk[:remaining]
+                        chunks.append(piece)
+                        total += len(piece)
+                        if total >= MAX_BYTES:
+                            break
+                    raw = b"".join(chunks).decode(response.encoding or "utf-8", errors="replace")
                 if "html" in content_type or "<html" in raw[:1000].lower():
                     parser = TextExtractor()
                     parser.feed(raw)
-                    extracted = "\\n".join(parser.parts)
+                    extracted = "\n".join(parser.parts)
                 else:
                     extracted = raw
-                page_text = "\\n".join(line.strip() for line in extracted.splitlines() if line.strip())
-                return f"URL: {current}\\nHTTP: {response.status_code}\\n\\n{(page_text or '(No readable text; this site may require JavaScript.)')[:30000]}"
+                page_text = "\n".join(line.strip() for line in extracted.splitlines() if line.strip())
+                return f"URL: {current}\nHTTP: {response.status_code}\n\n{(page_text or '(No readable text; this site may require JavaScript.)')[:30000]}"
             return "Too many redirects (limit: 5)."
     except (httpx.HTTPError, OSError, ValueError) as exc:
         return f"Website inspection failed: {exc}"
