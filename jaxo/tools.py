@@ -5,19 +5,32 @@ from rich.prompt import Confirm
 WORKSPACE = (Path.cwd() / "workspace").resolve()
 SOURCE_ROOT = Path(__file__).resolve().parent.parent
 MAX_FILE_BYTES = 500_000
-SOURCE_EXTENSIONS = {".py", ".md", ".toml", ".txt", ".yml", ".yaml"}
-SOURCE_EXCLUDED_DIRS = {".git", ".venv", "__pycache__", "workspace", ".pytest_cache"}
+SOURCE_EXTENSIONS = {".py", ".md", ".toml", ".txt", ".yml", ".yaml", ".json", ".html", ".css", ".js", ".ts", ".jsx", ".tsx", ".sh", ".sql", ".xml", ".ini", ".cfg"}
+SOURCE_EXCLUDED_DIRS = {".git", ".venv", "__pycache__", ".pytest_cache", "node_modules"}
 SOURCE_EXCLUDED_NAMES = {".env", ".env.example", ".env.local", ".env.production"}
+
+
+def set_workspace(path: str) -> Path:
+    """Select an existing user-approved folder as JAXO's working root."""
+    global WORKSPACE
+    candidate = Path(os.path.expandvars(path)).expanduser()
+    if not candidate.is_absolute():
+        candidate = Path.cwd() / candidate
+    target = candidate.resolve(strict=True)
+    if not target.is_dir():
+        raise NotADirectoryError(f"Not a folder: {target}")
+    WORKSPACE = target
+    return WORKSPACE
 
 
 def _safe_target(relative_path: str) -> Path:
     raw = Path(relative_path)
     if not relative_path.strip() or raw.is_absolute() or ".." in raw.parts:
-        raise ValueError("Use a non-empty relative path inside workspace; '..' and absolute paths are blocked.")
+        raise ValueError("Use a relative path inside the selected folder; '..' and absolute paths are blocked.")
     WORKSPACE.mkdir(parents=True, exist_ok=True)
     target = (WORKSPACE / raw).resolve()
     if target != WORKSPACE and WORKSPACE not in target.parents:
-        raise ValueError("Path escapes the workspace.")
+        raise ValueError("Path escapes the selected folder.")
     current = WORKSPACE
     for part in raw.parts:
         current = current / part
@@ -41,11 +54,11 @@ def _safe_source_target(relative_path: str) -> Path:
     if resolved != SOURCE_ROOT and SOURCE_ROOT not in resolved.parents:
         raise ValueError("Source path escapes the JAXO installation.")
     if resolved.suffix.lower() not in SOURCE_EXTENSIONS:
-        raise ValueError("Only source, documentation, and text configuration files can be read.")
+        raise ValueError("That file type is not on the readable source allowlist.")
     if not resolved.is_file():
         raise FileNotFoundError("Source file not found.")
     if resolved.stat().st_size > MAX_FILE_BYTES:
-        raise ValueError("Source file exceeds the 500 KB read limit.")
+        raise ValueError("File exceeds the 500 KB read limit.")
     return resolved
 
 
@@ -109,11 +122,14 @@ def read_file(path: str) -> str:
         raise FileNotFoundError("File not found.")
     if target.stat().st_size > MAX_FILE_BYTES:
         raise ValueError("File exceeds 500 KB read limit.")
-    return target.read_text(encoding="utf-8")
+    try:
+        return target.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        raise ValueError("This file is not readable UTF-8 text. Binary files are not supported.")
 
 
 def list_files(path: str = ".") -> str:
-    target = _safe_target(path) if path != "." else WORKSPACE
+    target = WORKSPACE if path in {"", "."} else _safe_target(path)
     if not target.is_dir():
         raise NotADirectoryError("Folder not found.")
     entries = []
@@ -124,9 +140,9 @@ def list_files(path: str = ".") -> str:
 
 def workspace_tree() -> str:
     WORKSPACE.mkdir(parents=True, exist_ok=True)
-    lines = ["workspace/"]
+    lines = [f"{WORKSPACE}/"]
     for root, dirs, files in os.walk(WORKSPACE):
-        dirs[:] = sorted(d for d in dirs if d not in {".git", "__pycache__", ".venv"})
+        dirs[:] = sorted(d for d in dirs if d not in {".git", "__pycache__", ".venv", "node_modules"})
         depth = len(Path(root).relative_to(WORKSPACE).parts)
         for name in sorted(dirs):
             lines.append("  " * (depth + 1) + name + "/")
@@ -137,14 +153,12 @@ def workspace_tree() -> str:
 
 TOOL_SPECS = [
     {"type": "function", "function": {"name": "check_phishing_site", "description": "Check a URL for common phishing indicators and inspect public page forms. Heuristic triage only, not a definitive safety verdict.", "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}},
-
     {"type": "function", "function": {"name": "inspect_website", "description": "Inspect a public website URL and extract readable HTML or plain-text content. Does not log in or execute JavaScript.", "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}},
-
-    {"type": "function", "function": {"name": "create_folder", "description": "Create a folder inside the JAXO workspace. The user must approve.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}},
-    {"type": "function", "function": {"name": "create_file", "description": "Create or replace a UTF-8 text file inside the JAXO workspace. The user must approve.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}}, "required": ["path", "content"]}}},
-    {"type": "function", "function": {"name": "create_project", "description": "Create a multi-file project in the JAXO workspace. Provide a project folder name and a map of relative file paths to text contents. User approval is required.", "parameters": {"type": "object", "properties": {"name": {"type": "string"}, "files": {"type": "object", "additionalProperties": {"type": "string"}}}, "required": ["name", "files"]}}},
-    {"type": "function", "function": {"name": "list_files", "description": "List entries in a workspace folder.", "parameters": {"type": "object", "properties": {"path": {"type": "string", "default": "."}}, "required": []}}},
-    {"type": "function", "function": {"name": "read_file", "description": "Read a text file in the workspace, up to 500 KB.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}},
+    {"type": "function", "function": {"name": "create_folder", "description": "Create a folder inside the user's currently selected working folder. The user must approve.", "parameters": {"type": "object", "properties": {"path": {"type": "string", "description": "Relative folder path inside the selected folder."}}, "required": ["path"]}}},
+    {"type": "function", "function": {"name": "create_file", "description": "Create or replace a UTF-8 text/code file inside the user's currently selected working folder. The user must approve. Use this to write new files or edit existing files after reading them.", "parameters": {"type": "object", "properties": {"path": {"type": "string", "description": "Relative file path inside the selected folder."}, "content": {"type": "string", "description": "Complete new file contents."}}, "required": ["path", "content"]}}},
+    {"type": "function", "function": {"name": "create_project", "description": "Create a multi-file project inside the user's currently selected working folder. Provide a project folder name and a map of relative file paths to text contents. User approval is required.", "parameters": {"type": "object", "properties": {"name": {"type": "string"}, "files": {"type": "object", "additionalProperties": {"type": "string"}}}, "required": ["name", "files"]}}},
+    {"type": "function", "function": {"name": "list_files", "description": "List files and folders in the selected working folder or a relative subfolder. Use this first to understand the user's project structure.", "parameters": {"type": "object", "properties": {"path": {"type": "string", "default": "."}}, "required": []}}},
+    {"type": "function", "function": {"name": "read_file", "description": "Read a UTF-8 text or code file inside the selected working folder, up to 500 KB. Use this before editing an existing file.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}},
     {"type": "function", "function": {"name": "list_source_files", "description": "List JAXO's own readable source files, tests, documentation and text configuration. Secrets, environment files, virtual environments and workspace data are excluded.", "parameters": {"type": "object", "properties": {}, "required": []}}},
     {"type": "function", "function": {"name": "read_source_file", "description": "Read one file from JAXO's own source tree. Read-only; .env and secret files are blocked. Use list_source_files first to discover paths.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}}
 ]
