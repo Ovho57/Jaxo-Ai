@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from jaxo.auth import authenticate
 from jaxo.client import JaxoClient
 from jaxo.brain import JaxoBrain
+from jaxo.voice import VoiceEngine
 
 console = Console()
 
@@ -27,6 +28,8 @@ def main():
 
     try:
         brain = JaxoBrain(JaxoClient(), console)
+        voice = VoiceEngine(console)
+        brain.voice = voice
     except Exception as exc:
         console.print(f"[red]Startup failed:[/] {exc}")
         return
@@ -57,12 +60,22 @@ def main():
                 "  /source        List JAXO's readable source files\n"
                 "  /source PATH   Read a JAXO source file\n"
                 "  /self-check    Inspect JAXO source inventory\n"
-                "  /evolve        Draft a self-improvement plan\n"
+                "  /evolve        Draft a self-improvement plan\n                "  /voice         Toggle spoken AI replies\n"
+                "  /listen        Speak a prompt into your microphone\n""
                 "  /clear         Clear the terminal\n"
                 "  /exit          Quit JAXO\n\n"
                 "[dim]Or just talk naturally. Ask JAXO to explain its code, inspect a module, "
                 "debug a project, write code, or build something.[/dim]\n"
             )
+            continue
+        if command == "/voice":
+            voice.toggle()
+            continue
+        if command == "/listen":
+            spoken_text = voice.listen()
+            if spoken_text:
+                console.print(f"[dim]You said:[/] {spoken_text}")
+                brain.respond(spoken_text)
             continue
         if command == "/clear":
             console.clear()
