@@ -1,4 +1,4 @@
-# ⚡ JAXO AI
+# JAXO AI
 
 <p align="center">
   <strong>Your ideas. Your AI. Your terminal.</strong><br>
@@ -6,35 +6,35 @@
 </p>
 
 <p align="center">
-  <a href="#-what-jaxo-can-do">Features</a> •
-  <a href="#-get-started">Get started</a> •
-  <a href="#-premium-access">Premium</a> •
-  <a href="#-safety--transparency">Safety</a>
+  <a href="#what-jaxo-can-do">Features</a> |
+  <a href="#get-started">Get started</a> |
+  <a href="#premium-access">Premium</a> |
+  <a href="#safety-and-transparency">Safety</a>
 </p>
 
 ---
 
-## 🚀 Meet JAXO
+## Meet JAXO
 
-JAXO is a Python-based, terminal AI assistant designed to be more than a chatbot. It can hold conversations, help with coding, work with files in its workspace, build project structures, and inspect its own readable source code.
+JAXO is a Python-based terminal AI assistant designed to be more than a chatbot. It can hold conversations, help with coding, work with files in its workspace, build project structures, and inspect its own readable source code.
 
 Whether you're planning an idea, learning something new, or building your next project, JAXO is ready in your terminal.
 
-## ✨ What JAXO can do
+## What JAXO can do
 
-- 💬 **AI conversations** — ask questions, explore ideas, and get help.
-- 🧠 **Thinking experience** — animated terminal thinking and tool-activity indicators.
-- 🧑‍💻 **Coding assistance** — get help understanding and working with code.
-- 📁 **Workspace tools** — create folders and files, list contents, and read files.
-- 🏗️ **Project building** — generate multi-file project structures with path checks and confirmation.
-- 🔍 **Source inspection** — read JAXO's own accessible source, tests, and documentation.
-- 🌐 **Website inspection** — retrieve and inspect public HTML and plain-text pages.
-- 🛡️ **Basic phishing checks** — flag suspicious URL and page patterns.
-- 🎙️ **Optional voice** — speak prompts and hear spoken replies with the voice packages installed.
+- **AI conversations** — ask questions, explore ideas, and get help.
+- **Thinking experience** — animated terminal thinking and tool-activity indicators.
+- **Coding assistance** — get help understanding and working with code.
+- **Workspace tools** — create folders and files, list contents, and read files.
+- **Project building** — generate multi-file project structures with path checks and confirmation.
+- **Source inspection** — read JAXO's own accessible source, tests, and documentation.
+- **Website inspection** — retrieve and inspect public HTML and plain-text pages.
+- **Basic phishing checks** — flag suspicious URL and page patterns.
+- **Optional voice** — speak prompts and hear spoken replies with the voice packages installed.
 
-> JAXO is actively being developed. Check the sections below for current limitations.
+JAXO is actively being developed. Check the sections below for current limitations.
 
-## ⚡ Get started
+## Get started
 
 ### 1. Clone the repository
 
@@ -77,11 +77,11 @@ Follow the [Installation Guide](docs/INSTALLATION.md) to configure your model pr
 python main.py
 ```
 
-That's it. Start chatting and explore the commands available inside JAXO.
+Start chatting and explore the commands available inside JAXO.
 
-## 👑 Premium access
+## Premium access
 
-Want to unlock JAXO's premium features?
+To unlock JAXO's premium features:
 
 1. Open the [JAXO Premium Key](premium-key/KEY.txt) file.
 2. Copy the key.
@@ -90,7 +90,7 @@ Want to unlock JAXO's premium features?
 
 **Important:** The key file is in this repository. Anyone who can access the repository can read it, so this setup is convenient key sharing—not private or secure license distribution.
 
-## 🎙️ Optional voice setup
+## Optional voice setup
 
 Install the voice dependencies:
 
@@ -102,7 +102,7 @@ Then use `/voice` to toggle spoken replies and `/listen` to dictate a prompt.
 
 Microphone input uses Google's speech-recognition web service and requires an internet connection. PyAudio may also need operating-system audio libraries.
 
-## 🛡️ Safety & transparency
+## Safety and transparency
 
 - Workspace writes require confirmation.
 - Website requests block private/local network addresses and limit response size and redirects.
@@ -111,7 +111,7 @@ Microphone input uses Google's speech-recognition web service and requires an in
 - JAXO does not execute website JavaScript, sign in to websites, bypass paywalls, or access private pages.
 - Keep API keys and passwords out of prompts and generated files. Never commit your `.env` file.
 
-## 🧭 What's still being built
+## What's still being built
 
 Some planned capabilities are not implemented yet, including:
 
@@ -121,19 +121,19 @@ Some planned capabilities are not implemented yet, including:
 - Unrestricted terminal execution.
 - Verified end-to-end runtime support on every operating system.
 
-## 🧪 Run the tests
+## Run the tests
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-## 🤝 Contribute
+## Contribute
 
-Found a bug or have an idea? Open an issue or submit a pull request. Clear bug reports and focused improvements are always welcome.
+Found a bug or have an idea? Open an issue or submit a pull request. Clear bug reports and focused improvements are welcome.
 
 ---
 
 <p align="center">
-  <strong>⚡ JAXO AI — Build boldly. Think freely.</strong><br>
+  <strong>JAXO AI — Build boldly. Think freely.</strong><br>
   <sub>Made for curious minds and builders.</sub>
 </p>
