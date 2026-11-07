@@ -1,0 +1,4 @@
+# Optional voice features. Install separately if you want microphone input and spoken replies.
+pyttsx3>=2.90
+SpeechRecognition>=3.10.0
+PyAudio>=0.2.14
