@@ -118,6 +118,10 @@ def create_file(path: str, content: str, console=None) -> str:
 
 def read_file(path: str) -> str:
     target = _safe_target(path)
+    if target.name.lower().startswith(".env") or target.name.lower() in {
+        "id_rsa", "id_ed25519", "credentials", "secrets.json"
+    } or target.suffix.lower() in {".pem", ".p12", ".pfx"}:
+        raise PermissionError("JAXO will not read environment files, credentials, or private keys.")
     if not target.is_file():
         raise FileNotFoundError("File not found.")
     if target.stat().st_size > MAX_FILE_BYTES:
