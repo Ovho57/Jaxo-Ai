@@ -83,6 +83,21 @@ def inspect_website(url):
         return f"Website inspection failed: {exc}"
 
 
+
+
+class PageParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.password_fields = 0
+        self.form_actions = []
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "input" and attrs.get("type", "").lower() == "password":
+            self.password_fields += 1
+        elif tag == "form":
+            self.form_actions.append(attrs.get("action", ""))
+
+
 def check_phishing_site(url):
     """Heuristic phishing triage; not a definitive reputation verdict."""
     import ipaddress
