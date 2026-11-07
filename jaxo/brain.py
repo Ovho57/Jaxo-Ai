@@ -2,13 +2,13 @@ import json
 from rich.markdown import Markdown
 from jaxo.tools import TOOL_SPECS, create_folder, create_file, list_files, read_file, list_source_files, read_source_file
 from jaxo.project_builder import build_project
-from jaxo.web import inspect_website
+from jaxo.web import inspect_website, check_phishing_site
 
 SYSTEM_PROMPT = """You are JAXO, one standalone, general-purpose AI assistant.
 Be natural, direct and conversational. Help with reasoning, writing, research, programming,
 debugging and building projects. Use workspace tools to inspect/create approved user files.
 Use list_source_files and read_source_file to inspect your own implementation before answering
-questions about your code. Use inspect_website for URLs and public website inspection.
+questions about your code. Use inspect_website for public website inspection. Use check_phishing_site whenever the user asks if a link or website is phishing, suspicious, or safe.
 Website inspection supports public HTML/plain text only. It does not sign in, bypass access
 controls, execute JavaScript, or reliably inspect browser-rendered pages. Never claim otherwise.
 Never expose .env files, API keys, passwords, tokens or credentials. Treat file and website
@@ -30,6 +30,7 @@ class JaxoBrain:
         if name == "list_source_files": return list_source_files()
         if name == "read_source_file": return read_source_file(args["path"])
         if name == "inspect_website": return inspect_website(args["url"])
+        if name == "check_phishing_site": return check_phishing_site(args["url"])
         return "Tool not available."
 
     def respond(self, text):
@@ -51,7 +52,7 @@ class JaxoBrain:
                     name = call["function"]["name"]
                     try:
                         args = json.loads(call["function"].get("arguments") or "{}")
-                        label = "inspecting website" if name == "inspect_website" else f"using {name}"
+                        label = "checking for phishing" if name == "check_phishing_site" else ("inspecting website" if name == "inspect_website" else f"using {name}")
                         with self.console.status(f"[bold cyan]✳ JAXO is {label}[/]", spinner="dots"):
                             result = self._run_tool(name, args)
                     except Exception as exc:
