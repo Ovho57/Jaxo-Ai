@@ -30,6 +30,7 @@ def load_account():
 
 
 def save_account(account):
+    ACCOUNT_FILE.parent.mkdir(parents=True, exist_ok=True)
     ACCOUNT_FILE.write_text(json.dumps(account, indent=2), encoding="utf-8")
     try:
         ACCOUNT_FILE.chmod(0o600)
@@ -137,6 +138,9 @@ def draw_home():
         "[white]Chat, inspect projects, create files and build code.[/white]\n"
         "[white]/help[/white]  Show commands\n"
         "[white]/folder PATH[/white]  Select a working folder\n"
+        "[white]/mkdir NAME[/white]  Create a folder instantly\n"
+        "[white]/touch FILE[/white]  Create an empty file\n"
+        "[white]/ls[/white]  List folder contents\n"
         "[white]/new chat[/white]  Start a fresh conversation\n"
         "[white]/new project[/white]  Create a workspace project\n"
         "[white]/remember chat[/white]  Save this chat (Premium)"
@@ -187,6 +191,9 @@ def main():
                 "[bold bright_blue]JAXO commands[/bold bright_blue]\n"
                 "  /help             Show commands\n"
                 "  /folder PATH      Select the folder JAXO can work in\n"
+                "  /mkdir NAME       Create a folder directly (no AI wait)\n"
+                "  /touch FILE       Create an empty file directly\n"
+                "  /ls [PATH]        List folder contents directly\n"
                 "  /new chat         Start a fresh conversation\n"
                 "  /new project      Create a new project in the selected folder\n"
                 "  /remember chat    Save this conversation (Premium)\n"
@@ -211,6 +218,34 @@ def main():
                 console.print(f"[red]Could not select folder:[/] {exc}")
                 console.print("[dim]In WSL, Windows folders usually look like /mnt/c/Users/YourName/Desktop[/dim]")
             continue
+
+        # Local filesystem commands are handled here, not sent to the AI model.
+        # This makes simple folder/file operations immediate.
+        if command == "/mkdir" or command.startswith("/mkdir "):
+            from jaxo.tools import create_folder
+            folder_name = user_text[len("/mkdir"):].strip().strip('"').strip("'")
+            if not folder_name:
+                folder_name = Prompt.ask("Folder name").strip()
+            if folder_name:
+                console.print(create_folder(folder_name, console))
+            continue
+        if command == "/touch" or command.startswith("/touch "):
+            from jaxo.tools import create_file
+            file_name = user_text[len("/touch"):].strip().strip('"').strip("'")
+            if not file_name:
+                file_name = Prompt.ask("File name").strip()
+            if file_name:
+                console.print(create_file(file_name, "", console))
+            continue
+        if command == "/ls" or command.startswith("/ls "):
+            from jaxo.tools import list_files
+            folder = user_text[len("/ls"):].strip().strip('"').strip("'") or "."
+            try:
+                console.print(Panel(list_files(folder), title=f"Contents · {folder}", border_style="cyan"))
+            except Exception as exc:
+                console.print(f"[red]Cannot list folder:[/] {exc}")
+            continue
+
         if command == "/license":
             activate_license()
             continue
