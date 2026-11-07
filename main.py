@@ -27,14 +27,14 @@ def main():
         return
 
     try:
-        brain = JaxoBrain(JaxoClient(), console)
+        client = JaxoClient()
+        brain = JaxoBrain(client, console)
         voice = VoiceEngine(console)
         brain.voice = voice
     except Exception as exc:
         console.print(f"[red]Startup failed:[/] {exc}")
         return
 
-    # Keep the banner for startup only; chat gets a clean terminal.
     console.clear()
     console.print("[dim]JAXO ready · /help for commands · /exit to quit[/dim]\n")
 
@@ -57,15 +57,16 @@ def main():
                 "[bold]Commands[/bold]\n"
                 "  /help          Show commands\n"
                 "  /tree          Show workspace files\n"
-                "  /source        List JAXO's readable source files\n"
+                "  /source        List JAXO source files\n"
                 "  /source PATH   Read a JAXO source file\n"
                 "  /self-check    Inspect JAXO source inventory\n"
-                "  /evolve        Draft a self-improvement plan\n                "  /voice         Toggle spoken AI replies\n"
-                "  /listen        Speak a prompt into your microphone\n""
+                "  /evolve        Draft a self-improvement plan\n"
+                "  /voice         Toggle spoken AI replies\n"
+                "  /listen        Speak a prompt into your microphone\n"
                 "  /clear         Clear the terminal\n"
                 "  /exit          Quit JAXO\n\n"
-                "[dim]Or just talk naturally. Ask JAXO to explain its code, inspect a module, "
-                "debug a project, write code, or build something.[/dim]\n"
+                "[dim]Or chat naturally. Ask JAXO to inspect a site, check a suspicious link, "
+                "write code, debug a project, or build something.[/dim]\n"
             )
             continue
         if command == "/voice":
@@ -111,6 +112,8 @@ def main():
             continue
 
         brain.respond(user_text)
+
+    client.close()
 
 
 if __name__ == "__main__":
