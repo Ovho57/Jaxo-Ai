@@ -226,7 +226,25 @@ def main():
             console.print(Panel(make_plan(goal, findings), title="Evolution Engine · proposal only", border_style="yellow"))
             console.print("[yellow]No source files were changed. Self-modification remains disabled.[/yellow]")
             continue
-        brain.respond(user_text)
+        if not is_premium():
+            account = load_account()
+            used = int(account.get("free_messages_used", 0))
+            if used >= 5:
+                console.print(Panel(
+                    "[bold yellow]FREE CHAT LIMIT REACHED[/bold yellow]\\n\\n"
+                    "You've used your 5 free messages. Enter your JAXO Premium key with [bold]/license[/bold] to continue.",
+                    title="JAXO Premium", border_style="yellow"
+                ))
+                continue
+            brain.respond(user_text)
+            account["free_messages_used"] = used + 1
+            ACCOUNT_FILE.write_text(json.dumps(account, indent=2), encoding="utf-8")
+            try:
+                ACCOUNT_FILE.chmod(0o600)
+            except OSError:
+                pass
+        else:
+            brain.respond(user_text)
     client.close()
 
 
