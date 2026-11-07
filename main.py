@@ -1,7 +1,6 @@
 from rich.console import Console
 from rich.prompt import Prompt
 from rich.panel import Panel
-from rich.text import Text
 from dotenv import load_dotenv
 
 from jaxo.auth import authenticate
@@ -48,6 +47,8 @@ def main():
                 "/tree     Show the workspace tree\n"
                 "/mkdir    Create a workspace folder\n"
                 "/write    Create or replace a workspace file\n"
+                "/self-check Inspect JAXO source files\n"
+                "/evolve    Draft a self-improvement plan\n"
                 "/clear    Clear the terminal\n"
                 "/exit     Quit JAXO\n\n"
                 "You can also ask JAXO in plain language to create project folders and files.",
@@ -58,7 +59,7 @@ def main():
             from pathlib import Path
             from jaxo.evolution.inspector import inspect_source
             findings = inspect_source(Path(__file__).resolve().parent)
-            console.print(Panel("\\n".join(findings) or "No Python source files found.", title="JAXO source inspection", border_style="green"))
+            console.print(Panel("\n".join(findings) or "No Python source files found.", title="JAXO source inspection", border_style="green"))
             continue
         if user_text.lower() == "/evolve":
             from pathlib import Path
