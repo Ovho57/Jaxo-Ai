@@ -12,7 +12,9 @@ console = Console()
 
 def banner():
     console.print(Panel.fit(
-        "[bold bright_green]J A X O[/bold bright_green]\n[dim]Your terminal. Your AI. Your workflow.[/dim]\n[dim green]Standalone AI assistant • Project builder • Workspace tools[/dim green]",
+        "[bold bright_green]J A X O[/bold bright_green]\n"
+        "[dim]Your terminal. Your AI. Your workflow.[/dim]\n"
+        "[dim green]General AI • Coding • Projects • Self-awareness[/dim green]",
         border_style="bright_green",
     ))
 
@@ -26,69 +28,75 @@ def main():
     try:
         brain = JaxoBrain(JaxoClient(), console)
     except Exception as exc:
-        console.print(f"[red]Startup failed:[/red] {exc}")
+        console.print(f"[red]Startup failed:[/] {exc}")
         return
 
-    console.print("[dim]Type naturally to chat. Use /help for commands, /exit to quit.[/dim]\n")
+    # Keep the banner for startup only; chat gets a clean terminal.
+    console.clear()
+    console.print("[dim]JAXO ready · /help for commands · /exit to quit[/dim]\n")
+
     while True:
         try:
-            user_text = Prompt.ask("[bold bright_green]you[/bold bright_green]").strip()
+            user_text = Prompt.ask("[bold bright_green]❯[/bold bright_green]").strip()
         except (EOFError, KeyboardInterrupt):
-            console.print("\n[dim]Goodbye.[/dim]")
+            console.print("\n[dim]JAXO signing off.[/dim]")
             break
+
         if not user_text:
             continue
-        if user_text.lower() in {"/exit", "/quit"}:
+        command = user_text.lower()
+
+        if command in {"/exit", "/quit"}:
             console.print("[dim]JAXO signing off.[/dim]")
             break
-        if user_text.lower() == "/help":
-            console.print(Panel(
-                "/help     Show commands\n"
-                "/tree     Show the workspace tree\n"
-                "/mkdir    Create a workspace folder\n"
-                "/write    Create or replace a workspace file\n"
-                "/self-check Inspect JAXO source files\n"
-                "/evolve    Draft a self-improvement plan\n"
-                "/clear    Clear the terminal\n"
-                "/exit     Quit JAXO\n\n"
-                "You can also ask JAXO in plain language to create project folders and files.",
-                title="JAXO help", border_style="green"
-            ))
+        if command == "/help":
+            console.print(
+                "[bold]Commands[/bold]\n"
+                "  /help          Show commands\n"
+                "  /tree          Show workspace files\n"
+                "  /source        List JAXO's readable source files\n"
+                "  /source PATH   Read a JAXO source file\n"
+                "  /self-check    Inspect JAXO source inventory\n"
+                "  /evolve        Draft a self-improvement plan\n"
+                "  /clear         Clear the terminal\n"
+                "  /exit          Quit JAXO\n\n"
+                "[dim]Or just talk naturally. Ask JAXO to explain its code, inspect a module, "
+                "debug a project, write code, or build something.[/dim]\n"
+            )
             continue
-        if user_text.lower() == "/self-check":
-            from pathlib import Path
-            from jaxo.evolution.inspector import inspect_source
-            findings = inspect_source(Path(__file__).resolve().parent)
-            console.print(Panel("\n".join(findings) or "No Python source files found.", title="JAXO source inspection", border_style="green"))
+        if command == "/clear":
+            console.clear()
             continue
-        if user_text.lower() == "/evolve":
+        if command == "/tree":
+            from jaxo.tools import workspace_tree
+            console.print(workspace_tree())
+            continue
+        if command == "/source" or command.startswith("/source "):
+            from jaxo.tools import list_source_files, read_source_file
+            path = user_text.partition(" ")[2].strip()
+            if path:
+                try:
+                    console.print(Panel(read_source_file(path), title=f"JAXO source · {path}", border_style="cyan"))
+                except Exception as exc:
+                    console.print(f"[red]Cannot read source:[/] {exc}")
+            else:
+                console.print(Panel(list_source_files(), title="JAXO readable source files", border_style="cyan"))
+            continue
+        if command == "/self-check":
+            from jaxo.tools import list_source_files
+            console.print(Panel(list_source_files(), title="JAXO source inventory · read-only", border_style="green"))
+            continue
+        if command == "/evolve":
             from pathlib import Path
             from rich.prompt import Prompt as RichPrompt
             from jaxo.evolution.inspector import inspect_source
             from jaxo.evolution.planner import make_plan
             goal = RichPrompt.ask("What should JAXO improve?")
             findings = inspect_source(Path(__file__).resolve().parent)
-            console.print(Panel(make_plan(goal, findings), title="Evolution Engine • proposal only", border_style="yellow"))
-            console.print("[yellow]No source files were changed. Automatic patching is not enabled.[/yellow]")
+            console.print(Panel(make_plan(goal, findings), title="Evolution Engine · proposal only", border_style="yellow"))
+            console.print("[yellow]No source files were changed. Self-modification remains disabled.[/yellow]")
             continue
-        if user_text.lower() == "/clear":
-            console.clear()
-            continue
-        if user_text.lower() == "/tree":
-            from jaxo.tools import workspace_tree
-            console.print(workspace_tree())
-            continue
-        if user_text.lower() == "/mkdir":
-            name = Prompt.ask("Folder path (inside workspace)")
-            from jaxo.tools import create_folder
-            console.print(create_folder(name, console))
-            continue
-        if user_text.lower() == "/write":
-            path = Prompt.ask("File path (inside workspace)")
-            content = Prompt.ask("File content", default="")
-            from jaxo.tools import create_file
-            console.print(create_file(path, content, console))
-            continue
+
         brain.respond(user_text)
 
 
