@@ -22,7 +22,7 @@ def _safe_target(relative_path: str) -> Path:
     return target
 
 
-def create_folder(path: str, console) -> str:
+def create_folder(path: str, console=None) -> str:
     try:
         target = _safe_target(path)
         if target.exists():
@@ -35,7 +35,7 @@ def create_folder(path: str, console) -> str:
         return f"Could not create folder: {exc}"
 
 
-def create_file(path: str, content: str, console) -> str:
+def create_file(path: str, content: str, console=None) -> str:
     try:
         target = _safe_target(path)
         if len(content.encode("utf-8")) > MAX_FILE_BYTES:
@@ -69,27 +69,27 @@ def list_files(path: str = ".") -> str:
         raise NotADirectoryError("Folder not found.")
     entries = []
     for item in sorted(target.iterdir(), key=lambda p: (p.is_file(), p.name.lower())):
-        marker = "/" if item.is_dir() else ""
-        entries.append(item.name + marker)
+        entries.append(item.name + ("/" if item.is_dir() else ""))
     return "\n".join(entries) if entries else "(empty folder)"
 
 
 def workspace_tree() -> str:
     WORKSPACE.mkdir(parents=True, exist_ok=True)
-    lines = [f"workspace/"]
+    lines = ["workspace/"]
     for root, dirs, files in os.walk(WORKSPACE):
         dirs[:] = sorted(d for d in dirs if d not in {".git", "__pycache__", ".venv"})
         depth = len(Path(root).relative_to(WORKSPACE).parts)
+        for name in sorted(dirs):
+            lines.append("  " * (depth + 1) + name + "/")
         for name in sorted(files):
             lines.append("  " * (depth + 1) + name)
-        for name in dirs:
-            lines.append("  " * (depth + 1) + name + "/")
     return "\n".join(lines)
 
 
 TOOL_SPECS = [
-    {"type": "function", "function": {"name": "create_folder", "description": "Create a folder inside the JAXO workspace. Always explain the intended path first; the user must approve.", "parameters": {"type": "object", "properties": {"path": {"type": "string", "description": "Relative folder path inside workspace"}}, "required": ["path"]}}},
-    {"type": "function", "function": {"name": "create_file", "description": "Create or replace a UTF-8 text file inside the JAXO workspace. The user must approve the write.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}}, "required": ["path", "content"]}}},
+    {"type": "function", "function": {"name": "create_folder", "description": "Create a folder inside the JAXO workspace. The user must approve.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}},
+    {"type": "function", "function": {"name": "create_file", "description": "Create or replace a UTF-8 text file inside the JAXO workspace. The user must approve.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}}, "required": ["path", "content"]}}},
+    {"type": "function", "function": {"name": "create_project", "description": "Create a multi-file project in the JAXO workspace. Provide a project folder name and a map of relative file paths to text contents. User approval is required.", "parameters": {"type": "object", "properties": {"name": {"type": "string"}, "files": {"type": "object", "additionalProperties": {"type": "string"}}}, "required": ["name", "files"]}}},
     {"type": "function", "function": {"name": "list_files", "description": "List entries in a workspace folder.", "parameters": {"type": "object", "properties": {"path": {"type": "string", "default": "."}}, "required": []}}},
     {"type": "function", "function": {"name": "read_file", "description": "Read a text file in the workspace, up to 500 KB.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}},
 ]
