@@ -24,7 +24,13 @@ python main.py
 
 The first run asks you to create a local JAXO username and password. Account data is stored in `~/.jaxo/account.json`; passwords are PBKDF2-HMAC-SHA256 hashes, not plaintext.
 
-All generated files are created under `workspace/`.
+By default, JAXO uses the `workspace/` folder. You can select another existing folder at any time with:
+
+```text
+/folder /path/to/your/project
+```
+
+In WSL, a Windows Desktop folder commonly looks like `/mnt/c/Users/YourName/Desktop`. The selected folder is remembered for the next launch. JAXO can list and read text/code files there and create or edit files and folders. File writes require your approval; environment files and private keys are blocked from reading.
 
 
 ## Optional voice support
@@ -36,9 +42,3 @@ Then run JAXO and use `/voice` to toggle spoken responses or `/listen` to dictat
 
 On Linux/WSL, PyAudio may need PortAudio development headers and a microphone device. WSL microphone passthrough is not available in every setup. On Windows, if PyAudio installation fails, install a compatible PyAudio wheel or use a supported Python version. Microphone transcription uses Google's speech-recognition web service; audio is sent to that service for transcription.
 
-
-## JAXO Premium key portal
-
-The premium key is distributed through the separately deployed password-protected portal in `premium-key-portal/`. The portal password and premium key are configured as Cloudflare Worker secrets; never put either value in the repository or a public `.env` file.
-
-See [the portal deployment guide](../premium-key-portal/README.md).
