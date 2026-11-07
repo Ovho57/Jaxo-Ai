@@ -1,6 +1,10 @@
 from rich.console import Console
 from rich.prompt import Prompt
 from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
+from rich.columns import Columns
+from rich import box
 from dotenv import load_dotenv
 
 from jaxo.auth import authenticate
@@ -11,18 +15,54 @@ from jaxo.voice import VoiceEngine
 console = Console()
 
 
-def banner():
-    console.print(Panel.fit(
-        "[bold bright_green]J A X O[/bold bright_green]\n"
-        "[dim]Your terminal. Your AI. Your workflow.[/dim]\n"
-        "[dim green]General AI • Coding • Projects • Self-awareness[/dim green]",
-        border_style="bright_green",
-    ))
+def draw_home():
+    """Render JAXO's Copilot-inspired terminal home screen."""
+    console.clear()
+
+    tabs = Text()
+    tabs.append("[Current]", style="bold white on blue")
+    tabs.append("  Sessions", style="bright_white")
+    tabs.append("  Issues", style="dim")
+    tabs.append("  Pull requests", style="dim")
+    tabs.append("  Gists", style="dim")
+    console.print(tabs)
+    console.print()
+
+    left = (
+        "[bold bright_blue]▣  ▣[/bold bright_blue]\n"
+        "[bold magenta]▰ ▣▣ ▰[/bold magenta]\n"
+        "[bold magenta] ▣▣▣[/bold magenta]\n"
+        "[white]JAXO uses AI.[/white]\n"
+        "[dim]Check important results.[/dim]"
+    )
+    right = (
+        "[bold bright_blue]Getting started[/bold bright_blue]\n"
+        "[white]Chat with JAXO, build projects, inspect websites and write code.[/white]\n"
+        "[white]/help[/white]  Show commands\n"
+        "[white]/voice[/white]  Toggle spoken replies\n"
+        "[white]/listen[/white]  Talk to JAXO"
+    )
+    intro = Table.grid(expand=True)
+    intro.add_column(ratio=1)
+    intro.add_column(ratio=2)
+    intro.add_row(left, right)
+    console.print(Panel(intro, border_style="bright_blue", padding=(1, 2), box=box.ROUNDED))
+    console.print()
+    console.print("[bright_blue]●[/bright_blue] JAXO ready · AI connection initialized · Workspace tools available")
+    console.print()
+    console.print("[dim]Type a message below. Use /help for commands.[/dim]")
+
+
+def draw_footer():
+    console.print()
+    console.rule(style="dim")
+    console.print(
+        "[dim]↵ send  ·  / commands  ·  /help help  ·  /voice voice  ·  /exit quit[/dim]"
+    )
 
 
 def main():
     load_dotenv()
-    banner()
     if not authenticate(console):
         return
 
@@ -35,12 +75,11 @@ def main():
         console.print(f"[red]Startup failed:[/] {exc}")
         return
 
-    console.clear()
-    console.print("[dim]JAXO ready · /help for commands · /exit to quit[/dim]\n")
+    draw_home()
 
     while True:
         try:
-            user_text = Prompt.ask("[bold bright_green]❯[/bold bright_green]").strip()
+            user_text = Prompt.ask("[bold bright_blue]❯[/bold bright_blue]").strip()
         except (EOFError, KeyboardInterrupt):
             console.print("\n[dim]JAXO signing off.[/dim]")
             break
@@ -54,7 +93,7 @@ def main():
             break
         if command == "/help":
             console.print(
-                "[bold]Commands[/bold]\n"
+                "[bold bright_blue]JAXO commands[/bold bright_blue]\n"
                 "  /help          Show commands\n"
                 "  /tree          Show workspace files\n"
                 "  /source        List JAXO source files\n"
@@ -63,10 +102,8 @@ def main():
                 "  /evolve        Draft a self-improvement plan\n"
                 "  /voice         Toggle spoken AI replies\n"
                 "  /listen        Speak a prompt into your microphone\n"
-                "  /clear         Clear the terminal\n"
-                "  /exit          Quit JAXO\n\n"
-                "[dim]Or chat naturally. Ask JAXO to inspect a site, check a suspicious link, "
-                "write code, debug a project, or build something.[/dim]\n"
+                "  /clear         Return to the home screen\n"
+                "  /exit          Quit JAXO\n"
             )
             continue
         if command == "/voice":
@@ -79,11 +116,11 @@ def main():
                 brain.respond(spoken_text)
             continue
         if command == "/clear":
-            console.clear()
+            draw_home()
             continue
         if command == "/tree":
             from jaxo.tools import workspace_tree
-            console.print(workspace_tree())
+            console.print(Panel(workspace_tree(), title="Workspace", border_style="bright_blue"))
             continue
         if command == "/source" or command.startswith("/source "):
             from jaxo.tools import list_source_files, read_source_file
