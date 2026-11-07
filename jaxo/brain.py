@@ -20,6 +20,7 @@ class JaxoBrain:
     def __init__(self, client, console):
         self.client, self.console = client, console
         self.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        self.voice = None
 
     def _run_tool(self, name, args):
         if name == "create_folder": return create_folder(args["path"], self.console)
@@ -45,6 +46,8 @@ class JaxoBrain:
                     self.messages.append({"role": "assistant", "content": answer})
                     self.console.print()
                     self.console.print(Markdown(answer))
+                    if self.voice:
+                        self.voice.speak(answer)
                     self.console.print()
                     return
                 self.messages.append(message)
