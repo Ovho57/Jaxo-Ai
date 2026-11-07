@@ -51,7 +51,7 @@ def unlock_premium():
 
 def send_key_email():
     address = Prompt.ask("Enter your email address").strip()
-    if not re.fullmatch(r"[^\\s@]+@[^\\s@]+\\.[^\\s@]+", address):
+    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", address):
         console.print("[red]That email address doesn't look valid. Try again.[/red]")
         return
     host = os.getenv("JAXO_SMTP_HOST")
