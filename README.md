@@ -2,19 +2,31 @@
 
 **Your terminal. Your AI. Your workflow.**
 
-JAXO is a standalone, general-purpose terminal AI assistant. It can chat, reason, help with code, create files and projects in its workspace, inspect its own readable source, and retrieve readable text from public websites.
+JAXO is a standalone, general-purpose terminal AI assistant. It can chat, reason, help with code, create files and projects in its workspace, inspect its own readable source, inspect public websites, and perform basic phishing-risk triage.
 
 ## Current capabilities
 - Local first-run account creation and login.
 - OpenRouter-compatible model connection.
-- General-purpose terminal conversation with an animated Rich thinking indicator.
+- Animated terminal thinking and tool-activity indicators.
 - Workspace folder creation, file creation, listing and reading.
 - Multi-file project creation with path validation and explicit confirmation.
 - Read-only inspection of JAXO's own source, tests and documentation.
 - Public website inspection for HTML and plain-text pages.
+- Heuristic phishing checks for suspicious URL patterns, redirects, password fields and cross-domain form destinations.
+- Optional spoken replies and microphone input (install `requirements-voice.txt`).
+
+## Voice setup
+Install the optional voice packages:
+```bash
+pip install -r requirements-voice.txt
+```
+Inside JAXO, use `/voice` to toggle spoken answers and `/listen` to dictate a prompt. Microphone input uses the Google speech-recognition web service and therefore needs an internet connection. PyAudio may require operating-system audio development libraries; see the installation guide if it fails.
+
+## Phishing-check limitations
+The phishing checker uses URL and page-structure heuristics. It is not an antivirus engine or a live threat-intelligence reputation service. It may miss new phishing pages and may flag legitimate pages. A "no obvious warning signs" result is not proof of safety. Never enter credentials or payment information on a page you do not independently trust.
 
 ## Website inspection limits
-JAXO can fetch public pages over HTTP/HTTPS and extract readable text. It does not execute JavaScript, sign in, bypass paywalls or access controls, or inspect private pages. Some modern sites render their content only in the browser and may return little or no readable text.
+JAXO fetches public HTML and plain text. It does not execute JavaScript, sign in, bypass paywalls or access controls, or inspect private pages. Sites that render content only in a browser may return little readable text.
 
 ## Not yet implemented
 - Reviewed self-modification / automatic patch application.
@@ -27,7 +39,7 @@ JAXO can fetch public pages over HTTP/HTTPS and extract readable text. It does n
 See [Installation](docs/INSTALLATION.md).
 
 ## Safety
-Workspace writes require confirmation. Website inspection blocks localhost/private network addresses, limits response size and redirects, and reads HTML/plain text only. Never put API keys or passwords in prompts or generated project files. Keep `.env` private.
+Workspace writes require confirmation. Website requests block private/local network addresses and limit response size and redirects. Never put API keys or passwords in prompts or generated project files. Keep `.env` private.
 
 ## Development
 Run tests with:
