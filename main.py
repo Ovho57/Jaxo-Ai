@@ -1,5 +1,8 @@
 import json
 import re
+import os
+import smtplib
+from email.message import EmailMessage
 from datetime import datetime
 from pathlib import Path
 
@@ -34,14 +37,10 @@ def is_premium():
         return False
 
 
-def activate_license():
-    key = Prompt.ask("Enter your JAXO premium key", password=True).strip()
-    if key != PREMIUM_KEY:
-        console.print("[red]Invalid license key. Premium is still locked.[/red]")
-        return
+def unlock_premium():
     account = load_account()
     account["premium"] = True
-    account["license_key"] = key
+    account["license_key"] = PREMIUM_KEY
     ACCOUNT_FILE.write_text(json.dumps(account, indent=2), encoding="utf-8")
     try:
         ACCOUNT_FILE.chmod(0o600)
@@ -50,12 +49,52 @@ def activate_license():
     console.print("[bold green]Premium unlocked! Welcome to JAXO Premium.[/bold green]")
 
 
+def send_key_email():
+    address = Prompt.ask("Enter your email address").strip()
+    if not re.fullmatch(r"[^\\s@]+@[^\\s@]+\\.[^\\s@]+", address):
+        console.print("[red]That email address doesn't look valid. Try again.[/red]")
+        return
+    host = os.getenv("JAXO_SMTP_HOST")
+    port = int(os.getenv("JAXO_SMTP_PORT", "587"))
+    username = os.getenv("JAXO_SMTP_USER")
+    password = os.getenv("JAXO_SMTP_PASSWORD")
+    sender = os.getenv("JAXO_EMAIL_FROM") or username
+    if not all((host, username, password, sender)):
+        console.print("[yellow]Email delivery isn't configured. Set JAXO_SMTP_HOST, JAXO_SMTP_PORT, JAXO_SMTP_USER, JAXO_SMTP_PASSWORD and JAXO_EMAIL_FROM in .env.[/yellow]")
+        return
+    message = EmailMessage()
+    message["Subject"] = "Your JAXO Premium key"
+    message["From"] = sender
+    message["To"] = address
+    message.set_content("Thanks for choosing JAXO!\\n\\nYour JAXO Premium key is: " + PREMIUM_KEY + "\\n\\nIn JAXO, choose /license and enter this key to unlock Premium.")
+    try:
+        with smtplib.SMTP(host, port, timeout=20) as smtp:
+            smtp.starttls()
+            smtp.login(username, password)
+            smtp.send_message(message)
+        console.print("[green]Premium key email sent to " + address + ". Check your inbox and spam folder.[/green]")
+    except (OSError, smtplib.SMTPException) as exc:
+        console.print("[red]Could not send the email: " + str(exc) + "[/red]")
+
+
+def activate_license():
+    console.print(Panel("[bold bright_blue]Unlock JAXO Premium[/bold bright_blue]\\n\\n1. Enter your license key\\n2. Get the key by email", title="Premium access", border_style="bright_blue"))
+    choice = Prompt.ask("Choose an option", choices=["1", "2"], default="1")
+    if choice == "2":
+        send_key_email()
+        return
+    key = Prompt.ask("Enter your JAXO premium key", password=True).strip()
+    if key != PREMIUM_KEY:
+        console.print("[red]Invalid license key. Premium is still locked.[/red]")
+        return
+    unlock_premium()
+
 def remember_chat(brain):
     if not is_premium():
         console.print(Panel(
             "[bold yellow]PREMIUM FEATURE LOCKED[/bold yellow]\n\n"
             "Remember Chat saves conversations so you can return to them later.\n\n"
-            "Use [bold]/license[/bold] to enter your premium key.",
+            "Use [bold]/license[/bold] to enter a key or request it by email.",
             title="JAXO Premium", border_style="yellow"
         ))
         return
@@ -232,7 +271,7 @@ def main():
             if used >= 5:
                 console.print(Panel(
                     "[bold yellow]FREE CHAT LIMIT REACHED[/bold yellow]\n\n"
-                    "You've used your 5 free messages. Enter your JAXO Premium key with [bold]/license[/bold] to continue.",
+                    "You've used your 5 free messages. Use [bold]/license[/bold] to enter your key or get it by email.",
                     title="JAXO Premium", border_style="yellow"
                 ))
                 continue
