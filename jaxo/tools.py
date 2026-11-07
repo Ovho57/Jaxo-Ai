@@ -3,7 +3,11 @@ from pathlib import Path
 from rich.prompt import Confirm
 
 WORKSPACE = (Path.cwd() / "workspace").resolve()
+SOURCE_ROOT = Path(__file__).resolve().parent.parent
 MAX_FILE_BYTES = 500_000
+SOURCE_EXTENSIONS = {".py", ".md", ".toml", ".txt", ".yml", ".yaml"}
+SOURCE_EXCLUDED_DIRS = {".git", ".venv", "__pycache__", "workspace", ".pytest_cache"}
+SOURCE_EXCLUDED_NAMES = {".env", ".env.example", ".env.local", ".env.production"}
 
 
 def _safe_target(relative_path: str) -> Path:
@@ -20,6 +24,51 @@ def _safe_target(relative_path: str) -> Path:
         if current.is_symlink():
             raise ValueError("Symlinks are not allowed in workspace paths.")
     return target
+
+
+def _safe_source_target(relative_path: str) -> Path:
+    raw = Path(relative_path)
+    if not relative_path.strip() or raw.is_absolute() or ".." in raw.parts:
+        raise ValueError("Use a relative source path; absolute paths and '..' are blocked.")
+    if any(part in SOURCE_EXCLUDED_DIRS for part in raw.parts):
+        raise ValueError("That source location is excluded.")
+    if raw.name in SOURCE_EXCLUDED_NAMES or raw.name.startswith(".env"):
+        raise ValueError("Environment and secret files are never readable by JAXO.")
+    target = SOURCE_ROOT / raw
+    if target.is_symlink():
+        raise ValueError("Symlinked source files are not readable.")
+    resolved = target.resolve()
+    if resolved != SOURCE_ROOT and SOURCE_ROOT not in resolved.parents:
+        raise ValueError("Source path escapes the JAXO installation.")
+    if resolved.suffix.lower() not in SOURCE_EXTENSIONS:
+        raise ValueError("Only source, documentation, and text configuration files can be read.")
+    if not resolved.is_file():
+        raise FileNotFoundError("Source file not found.")
+    if resolved.stat().st_size > MAX_FILE_BYTES:
+        raise ValueError("Source file exceeds the 500 KB read limit.")
+    return resolved
+
+
+def list_source_files() -> str:
+    """List readable files in JAXO's own installation, excluding secrets and runtime data."""
+    entries = []
+    for path in sorted(SOURCE_ROOT.rglob("*")):
+        relative = path.relative_to(SOURCE_ROOT)
+        if any(part in SOURCE_EXCLUDED_DIRS for part in relative.parts):
+            continue
+        if path.is_symlink() or not path.is_file():
+            continue
+        if path.name in SOURCE_EXCLUDED_NAMES or path.name.startswith(".env"):
+            continue
+        if path.suffix.lower() in SOURCE_EXTENSIONS:
+            entries.append(relative.as_posix())
+    return "\n".join(entries) if entries else "(no readable source files found)"
+
+
+def read_source_file(path: str) -> str:
+    """Read one allowlisted file from JAXO's own source tree. Read-only; never exposes .env."""
+    target = _safe_source_target(path)
+    return target.read_text(encoding="utf-8")
 
 
 def create_folder(path: str, console=None) -> str:
@@ -92,4 +141,6 @@ TOOL_SPECS = [
     {"type": "function", "function": {"name": "create_project", "description": "Create a multi-file project in the JAXO workspace. Provide a project folder name and a map of relative file paths to text contents. User approval is required.", "parameters": {"type": "object", "properties": {"name": {"type": "string"}, "files": {"type": "object", "additionalProperties": {"type": "string"}}}, "required": ["name", "files"]}}},
     {"type": "function", "function": {"name": "list_files", "description": "List entries in a workspace folder.", "parameters": {"type": "object", "properties": {"path": {"type": "string", "default": "."}}, "required": []}}},
     {"type": "function", "function": {"name": "read_file", "description": "Read a text file in the workspace, up to 500 KB.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}},
+    {"type": "function", "function": {"name": "list_source_files", "description": "List JAXO's own readable source files, tests, documentation and text configuration. Secrets, environment files, virtual environments and workspace data are excluded.", "parameters": {"type": "object", "properties": {}, "required": []}}},
+    {"type": "function", "function": {"name": "read_source_file", "description": "Read one file from JAXO's own source tree. Read-only; .env and secret files are blocked. Use list_source_files first to discover paths.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}}
 ]
