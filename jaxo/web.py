@@ -81,3 +81,78 @@ def inspect_website(url):
             return "Too many redirects (limit: 5)."
     except (httpx.HTTPError, OSError, ValueError) as exc:
         return f"Website inspection failed: {exc}"
+
+
+def check_phishing_site(url):
+    """Heuristic phishing triage; not a definitive reputation verdict."""
+    import ipaddress
+    from urllib.parse import urlparse, urljoin
+    parsed = urlparse(url.strip())
+    host = (parsed.hostname or "").lower()
+    reasons = []
+    if parsed.scheme != "https":
+        reasons.append("The URL does not use HTTPS.")
+    if "@" in parsed.netloc:
+        reasons.append("The URL contains an @ symbol that can disguise its true destination.")
+    try:
+        ipaddress.ip_address(host)
+        reasons.append("The site uses a raw IP address rather than a normal domain.")
+    except ValueError:
+        pass
+    if host.startswith("xn--") or ".xn--" in host:
+        reasons.append("The domain uses punycode, which can be used to imitate another domain.")
+    if host in {"bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "cutt.ly"}:
+        reasons.append("The link uses a URL shortener, hiding its final destination.")
+    if host.count(".") >= 4:
+        reasons.append("The domain has an unusually deep subdomain structure.")
+    if any(host.endswith(tld) for tld in {".zip", ".click", ".top", ".work", ".support", ".gq", ".tk", ".ml", ".cf"}):
+        reasons.append("The domain uses a top-level domain frequently seen in suspicious campaigns.")
+    keywords = [word for word in ("login", "verify", "secure", "account", "password", "wallet", "payment", "bank") if word in (host + parsed.path + parsed.query).lower()]
+    if len(keywords) >= 2:
+        reasons.append("The URL contains multiple sensitive-account keywords: " + ", ".join(keywords))
+    if len(url) > 180:
+        reasons.append("The URL is unusually long.")
+    final_url = url
+    try:
+        with httpx.Client(timeout=15.0, follow_redirects=False, headers={"User-Agent":"JAXO-Phishing-Check/1.0"}) as client:
+            for _ in range(6):
+                validate_public_url(final_url)
+                with client.stream("GET", final_url) as response:
+                    if response.status_code in {301,302,303,307,308}:
+                        target = response.headers.get("location")
+                        if not target:
+                            reasons.append("Redirect has no destination.")
+                            break
+                        final_url = urljoin(final_url, target)
+                        continue
+                    response.raise_for_status()
+                    if "html" in response.headers.get("content-type", "").lower():
+                        data, size = [], 0
+                        for chunk in response.iter_bytes():
+                            part = chunk[:MAX_BYTES-size]
+                            data.append(part)
+                            size += len(part)
+                            if size >= MAX_BYTES:
+                                break
+                        parser = PageParser()
+                        parser.feed(b"".join(data).decode(response.encoding or "utf-8", errors="replace"))
+                        final_host = (urlparse(final_url).hostname or "").lower()
+                        if parser.password_fields:
+                            reasons.append(f"The page contains {parser.password_fields} password field(s); verify the domain before entering credentials.")
+                        for action in parser.form_actions:
+                            if action:
+                                action_host = (urlparse(urljoin(final_url, action)).hostname or "").lower()
+                                if action_host and action_host != final_host:
+                                    reasons.append(f"A form submits data to a different domain: {action_host}.")
+                    break
+    except (httpx.HTTPError, OSError, ValueError) as exc:
+        reasons.append(f"Live inspection could not complete: {exc}")
+    reasons = list(dict.fromkeys(reasons))
+    if len(reasons) >= 3:
+        verdict = "HIGH RISK — do not enter passwords or payment details."
+    elif reasons:
+        verdict = "CAUTION — suspicious indicators found; verify independently."
+    else:
+        verdict = "NO OBVIOUS WARNING SIGNS — this does NOT prove the site is safe."
+    findings = "\n".join("- " + item for item in reasons) if reasons else "- No obvious heuristic warning signs detected."
+    return f"JAXO PHISHING CHECK\nURL: {url}\nFinal URL: {final_url}\nAssessment: {verdict}\n\n{findings}\n\nThis is heuristic analysis, not a live antivirus or threat-intelligence verdict. A clean result cannot guarantee safety."
