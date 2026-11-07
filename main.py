@@ -1,9 +1,13 @@
+import json
+import re
+from datetime import datetime
+from pathlib import Path
+
 from rich.console import Console
 from rich.prompt import Prompt
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
-from rich.columns import Columns
 from rich import box
 from dotenv import load_dotenv
 
@@ -11,14 +15,74 @@ from jaxo.auth import authenticate
 from jaxo.client import JaxoClient
 from jaxo.brain import JaxoBrain
 from jaxo.voice import VoiceEngine
+from jaxo.project_builder import build_project
 
 console = Console()
+ACCOUNT_FILE = Path.home() / ".jaxo" / "account.json"
+CHATS_DIR = Path.home() / ".jaxo" / "chats"
+PREMIUM_KEY = "GHOSTODISTHEGREAT"
+
+
+def load_account():
+    return json.loads(ACCOUNT_FILE.read_text(encoding="utf-8"))
+
+
+def is_premium():
+    try:
+        return bool(load_account().get("premium", False))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
+
+
+def activate_license():
+    key = Prompt.ask("Enter your JAXO premium key", password=True).strip()
+    if key != PREMIUM_KEY:
+        console.print("[red]Invalid license key. Premium is still locked.[/red]")
+        return
+    account = load_account()
+    account["premium"] = True
+    account["license_key"] = key
+    ACCOUNT_FILE.write_text(json.dumps(account, indent=2), encoding="utf-8")
+    try:
+        ACCOUNT_FILE.chmod(0o600)
+    except OSError:
+        pass
+    console.print("[bold green]Premium unlocked! Welcome to JAXO Premium.[/bold green]")
+
+
+def remember_chat(brain):
+    if not is_premium():
+        console.print(Panel(
+            "[bold yellow]PREMIUM FEATURE LOCKED[/bold yellow]\n\n"
+            "Remember Chat saves conversations so you can return to them later.\n\n"
+            "Use [bold]/license[/bold] to enter your premium key.",
+            title="JAXO Premium", border_style="yellow"
+        ))
+        return
+    conversation = [m for m in brain.messages if m.get("role") != "system"]
+    if not any(m.get("role") == "user" for m in conversation):
+        console.print("[yellow]There is no conversation to save yet.[/yellow]")
+        return
+    CHATS_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+    first = next(m.get("content", "") for m in conversation if m.get("role") == "user")
+    title = re.sub(r"[^a-zA-Z0-9_-]+", "-", str(first)).strip("-")[:36] or "chat"
+    chat_id = datetime.now().strftime("%Y%m%d-%H%M%S")
+    path = CHATS_DIR / f"{chat_id}-{title}.json"
+    path.write_text(json.dumps({
+        "id": chat_id, "title": str(first)[:100],
+        "saved_at": datetime.now().astimezone().isoformat(),
+        "messages": conversation
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
+    console.print(f"[green]Chat saved:[/] {path.name}")
 
 
 def draw_home():
-    """Render JAXO's Copilot-inspired terminal home screen."""
+    """Render JAXO's terminal home screen."""
     console.clear()
-
     tabs = Text()
     tabs.append("[Current]", style="bold white on blue")
     tabs.append("  Sessions", style="bright_white")
@@ -27,7 +91,6 @@ def draw_home():
     tabs.append("  Gists", style="dim")
     console.print(tabs)
     console.print()
-
     left = (
         "[bold bright_blue]▣  ▣[/bold bright_blue]\n"
         "[bold magenta]▰ ▣▣ ▰[/bold magenta]\n"
@@ -39,8 +102,9 @@ def draw_home():
         "[bold bright_blue]Getting started[/bold bright_blue]\n"
         "[white]Chat with JAXO, build projects, inspect websites and write code.[/white]\n"
         "[white]/help[/white]  Show commands\n"
-        "[white]/voice[/white]  Toggle spoken replies\n"
-        "[white]/listen[/white]  Talk to JAXO"
+        "[white]/new chat[/white]  Start a fresh conversation\n"
+        "[white]/new project[/white]  Create a workspace project\n"
+        "[white]/remember chat[/white]  Save this chat (Premium)"
     )
     intro = Table.grid(expand=True)
     intro.add_column(ratio=1)
@@ -51,14 +115,6 @@ def draw_home():
     console.print("[bright_blue]●[/bright_blue] JAXO ready · AI connection initialized · Workspace tools available")
     console.print()
     console.print("[dim]Type a message below. Use /help for commands.[/dim]")
-
-
-def draw_footer():
-    console.print()
-    console.rule(style="dim")
-    console.print(
-        "[dim]↵ send  ·  / commands  ·  /help help  ·  /voice voice  ·  /exit quit[/dim]"
-    )
 
 
 def main():
@@ -76,14 +132,12 @@ def main():
         return
 
     draw_home()
-
     while True:
         try:
             user_text = Prompt.ask("[bold bright_blue]❯[/bold bright_blue]").strip()
         except (EOFError, KeyboardInterrupt):
             console.print("\n[dim]JAXO signing off.[/dim]")
             break
-
         if not user_text:
             continue
         command = user_text.lower()
@@ -94,22 +148,47 @@ def main():
         if command == "/help":
             console.print(
                 "[bold bright_blue]JAXO commands[/bold bright_blue]\n"
-                "  /help          Show commands\n"
-                "  /tree          Show workspace files\n"
-                "  /source        List JAXO source files\n"
-                "  /source PATH   Read a JAXO source file\n"
-                "  /self-check    Inspect JAXO source inventory\n"
-                "  /evolve        Draft a self-improvement plan\n"
-                "  /voice         Toggle spoken AI replies\n"
-                "  /listen        Speak a prompt into your microphone\n"
-                "  /clear         Return to the home screen\n"
-                "  /exit          Quit JAXO\n"
+                "  /help             Show commands\n"
+                "  /new chat         Start a fresh conversation\n"
+                "  /new project      Create a new workspace project\n"
+                "  /remember chat    Save this conversation (Premium)\n"
+                "  /license          Enter premium license key\n"
+                "  /tree             Show workspace files\n"
+                "  /source [PATH]    List or read JAXO source files\n"
+                "  /self-check       Inspect JAXO source inventory\n"
+                "  /evolve           Draft a self-improvement plan\n"
+                "  /voice            Toggle spoken AI replies\n"
+                "  /listen           Speak a prompt into your microphone\n"
+                "  /clear            Return to the home screen\n"
+                "  /exit             Quit JAXO\n"
             )
             continue
+        if command == "/license":
+            activate_license()
+            continue
+        if command == "/remember chat":
+            remember_chat(brain)
+            continue
+        if command == "/new chat":
+            brain.messages = [brain.messages[0]]
+            console.print("[green]Started a new chat. Your current conversation was not saved automatically.[/green]")
+            continue
+        if command == "/new project":
+            name = Prompt.ask("Project name").strip()
+            if name:
+                result = build_project(name, {"README.md": f"# {name}\\n\\nCreated with JAXO.\\n"}, console)
+                console.print(result)
+            continue
         if command == "/voice":
-            voice.toggle()
+            if not is_premium():
+                console.print("[yellow]Voice is a Premium feature. Use /license to unlock it.[/yellow]")
+            else:
+                voice.toggle()
             continue
         if command == "/listen":
+            if not is_premium():
+                console.print("[yellow]Voice input is a Premium feature. Use /license to unlock it.[/yellow]")
+                continue
             spoken_text = voice.listen()
             if spoken_text:
                 console.print(f"[dim]You said:[/] {spoken_text}")
@@ -147,9 +226,7 @@ def main():
             console.print(Panel(make_plan(goal, findings), title="Evolution Engine · proposal only", border_style="yellow"))
             console.print("[yellow]No source files were changed. Self-modification remains disabled.[/yellow]")
             continue
-
         brain.respond(user_text)
-
     client.close()
 
 
