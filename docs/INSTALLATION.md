@@ -25,3 +25,13 @@ python main.py
 The first run asks you to create a local JAXO username and password. Account data is stored in `~/.jaxo/account.json`; passwords are PBKDF2-HMAC-SHA256 hashes, not plaintext.
 
 All generated files are created under `workspace/`.
+
+
+## Optional voice support
+Voice is optional; JAXO works without it. To add spoken replies and microphone input:
+```bash
+pip install -r requirements-voice.txt
+```
+Then run JAXO and use `/voice` to toggle spoken responses or `/listen` to dictate a prompt.
+
+On Linux/WSL, PyAudio may need PortAudio development headers and a microphone device. WSL microphone passthrough is not available in every setup. On Windows, if PyAudio installation fails, install a compatible PyAudio wheel or use a supported Python version. Microphone transcription uses Google's speech-recognition web service; audio is sent to that service for transcription.
